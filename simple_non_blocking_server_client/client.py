@@ -8,13 +8,10 @@ counter = [0 for item in range(capacity)]
 
 
 async def process(send, data: bytes) -> int | None:
-    print(data)
     if data == b'':
         return
     res = int(data.decode('utf-8').strip())
     await processed.put((send, res))
-    print(f"get answer of server: {res}")
-    return res
 
 
 async def send_request():
@@ -24,10 +21,10 @@ async def send_request():
     value = randint(5, 9)
     print(f"send to server: {value}")
     writer.write(str(value).encode('utf8'))
-    writer.write_eof()
     await writer.drain()
+    writer.write_eof()
 
-    await process(value, await reader.read())
+    await process(value, await reader.read(8))
 
     writer.close()
     await writer.wait_closed()
@@ -41,8 +38,8 @@ async def runner(identifier: int):
 
 
 async def main():
-    for i in range(10):
-        await tests.put(('127.0.0.1', 8080))
+    for i in range(100):
+        await tests.put(('127.0.0.1', 8000))
 
     await asyncio.sleep(3)
     await asyncio.gather(*(runner(i) for i in range(capacity)))
@@ -51,7 +48,10 @@ async def main():
     print(processed.empty(), processed.qsize())
     while not processed.empty():
         print(await processed.get(), end='\t')
+        if processed.qsize() % capacity == 0:
+            print()
     print()
+
 
 if __name__ == '__main__':
     asyncio.run(main())
